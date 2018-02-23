@@ -49,7 +49,7 @@ def get_similar(str_verify, isLieu=False, score=0.6):
 
 def convert_to_binary(img):
 	cv2.setNumThreads(0)
-	if (img.shape >= 3):
+	if (len(img.shape) >= 3):
 		img=cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 	ret, imgBinary = cv2.threshold(img,0,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)
 	height = np.size(img, 0)
@@ -79,6 +79,7 @@ def extract_text(img_path, model_path):
 	if(text.find(u' ') != -1 and (text.index(u' ') <= 3)):
 		if(len(text)>text.index(u' ')+1):		
 			index = text.index(u' ')+1
+	index=0
 	for ind, j in enumerate(chars):
 		#print j
 		if ind >= index:		
@@ -123,19 +124,26 @@ def clstm_ocr(img, cls):
 	if(index>0):
 		image=image[10:,:]
 	cropX=1
-	cropY=8
+	#cropY=8
+	cropY=3
 	cropWidth=1
-	cropHeight=10
+	#cropHeight=10
+	cropHeight=4
+	# if(islieu):
+	# 	cropHeight=3
+	# 	cropY=3
+	# 	cropX=3
+	# 	cropWidth=3
 	if(islieu):
-		cropHeight=3
-		cropY=3
-		cropX=3
-		cropWidth=3
+		cropHeight=2
+		cropY=2
+		cropX=2
+		cropWidth=2
 	for i in range (0,cropX,1):
 		for j in range (0,cropY):
 			for k in range (0,cropWidth):
 				for h in range (0, cropHeight):
-					img_path = crop_image(image, i, j, k, h)
+					img_path = crop_image(image, 3*i, 3*j, 3*k, 3*h)
 					text, prob, index = extract_text(img_path, model_path)
 					#print text, prob
 					if(prob > maxPro) and (len(text)>=2):
@@ -186,17 +194,17 @@ def clstm_ocr_parallel(img, cls):
 	if(index>0):
 		image=image[10:,:]
 	cropX=1
-	cropY=8
+	cropY=3
 	cropWidth=1
-	cropHeight=10
+	cropHeight=4
 	islieu=False
 	if (cls=="lieu"):
 		islieu=True
 	if(islieu):
-		cropHeight=3
-		cropY=3
-		cropX=3
-		cropWidth=3
+		cropHeight=2
+		cropY=2
+		cropX=2
+		cropWidth=2
 	q={}
 	p={}
 	txt={}
@@ -272,24 +280,14 @@ def calib_clstm_height_low(cropX, y, cropWidth, cropHeight, image, model_path):
 	for i in range (0,cropX):
 			for k in range (0,cropWidth):
 				for h in range (0, cropHeight):
-					img_path = crop_image(image, i, y, k, h)
+					img_path = crop_image(image, 3*i, 3*y, 3*k, 3*h)
 					text, prob, index = extract_text(img_path, model_path)
 					os.remove(img_path)
 					if(prob > maxPro) and (len(text)>=2):
 						maxPro = prob
 						ocr_result = text
 					if (maxPro > 0.95) and (len(text) >= 2):
-	# 					break
-	# if maxPro<0.95:
-	# 	img_path = crop_image(image, 0, 0, 0, 0)
-	# 	cleaned_path = os.path.join(CACHE_FOLDER, str(os.getpid())+"cleaned.png")
-	# 	remove_noise(2,img_path, cleaned_path)
-	# 	text, prob, index = extract_text(cleaned_path, model_path)
-	# 	os.remove(img_path)
-	# 	os.remove(cleaned_path)
-	# 	if(prob > maxPro) and (len(text)>=2):
-	# 		maxPro = prob
-	# 		ocr_result = text
+	 					break
 	return ocr_result, maxPro	
 
 def calib_clstm_height_low_queue(cropX, y, cropWidth, cropHeight, image, model_path, q):

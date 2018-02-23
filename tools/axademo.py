@@ -98,6 +98,9 @@ def extract_roi(class_name, dets, thresh=0.5):
 
         # a small regulation of detected zone, comment me if the lastest result is good enough
         hight = bbox[3] - bbox[1]
+        bbox[2]+=0.05 * (bbox[2] - bbox[0])
+        # if class_name == 'nom':
+        #     bbox[0] += 100
      #    if class_name == 'nom':
      #        bbox[0] += 1.5 * hight
      #        bbox[1] -= 0.25 * hight
@@ -252,7 +255,7 @@ def demo_parallel(net, image_name):
     txt={}
     prob={}
     for cls_ind, cls in enumerate(CLASSES[3:]):
-        cls_ind += 3 # because we skipped background, 'cni', 'person'
+        cls_ind += 3# because we skipped background, 'cni', 'person'
         cls_boxes = boxes[:, 4*cls_ind:4*(cls_ind + 1)]
         cls_scores = scores[:, cls_ind]
         dets = np.hstack((cls_boxes,
@@ -260,7 +263,7 @@ def demo_parallel(net, image_name):
         keep = nms(dets, NMS_THRESH)
         dets = dets[keep, :]
         tmp = extract_roi(cls, dets, thresh=CONF_THRESH)
-        if len(tmp) > 0 and cls!="mrz":
+        if len(tmp) > 0 and cls=="nom":
             #bbx = tmp[0]  # TODO: Find the zone with greatest probability
             #txt, prob = clstm_ocr(im[bbx[1]:bbx[3], bbx[0]:bbx[2]], cls=='lieu')
             #res[cls] = (bbx, txt, prob)
@@ -338,7 +341,7 @@ def demo_parallel(net, image_name):
 def check(boxes, scores, thresh=0.8, nms_thresh=0.3):
     count=0
     for cls_ind, cls in enumerate(CLASSES[1:]):
-        print cls_ind
+        #print cls_ind
         cls_ind += 1 # because we skipped background
         cls_boxes = boxes[:, 4*cls_ind:4*(cls_ind + 1)]
         cls_scores = scores[:, cls_ind]
@@ -379,6 +382,7 @@ def demo2(net, image_name):
     NMS_THRESH = 0.3
     res = {}
     roi_file_name=[]
+    print check(boxes, scores, CONF_THRESH, NMS_THRESH)
     if check(boxes, scores, CONF_THRESH, NMS_THRESH):
         print "Find 6 class"
         list_bbx={}
@@ -397,7 +401,7 @@ def demo2(net, image_name):
             keep = nms(dets, NMS_THRESH)
             dets = dets[keep, :]
             tmp = extract_roi(cls, dets, thresh=CONF_THRESH)
-            if len(tmp) > 0 and cls!="mrz":
+            if len(tmp) > 0 and cls=="nom":
                 #bbx = tmp[0]  # TODO: Find the zone with greatest probability
                 #txt, prob = clstm_ocr(im[bbx[1]:bbx[3], bbx[0]:bbx[2]], cls=='lieu')
                 #res[cls] = (bbx, txt, prob)
@@ -492,7 +496,15 @@ def demo2(net, image_name):
                 werkzeug.secure_filename('output' + str(i) + image_name +'.png')
             filename = os.path.join(UPLOAD_FOLDER, filename_)
             cv2.imwrite(filename, im[pts[1]:pts[3], pts[0]:pts[2]])
-            info_cni, roi_file_name=demo_parallel(net, filename)
+            #ToDo: size normalisation  of image and process image  
+            res=im[pts[1]:pts[3], pts[0]:pts[2]]
+            height=870
+            weight=1230
+            res=cv2.resize(res,(weight, height), interpolation = cv2.INTER_CUBIC)
+            resized_file = os.path.join(UPLOAD_FOLDER, "rs"+filename_)
+            cv2.imwrite(resized_file, res)
+            #
+            info_cni, roi_file_name=demo_parallel(net, resized_file)
             tot_info_cni.append(info_cni)
             #tot_info_cni.append(demo(net, filename))
         #vis_detections(im, cls, dets, thresh=CONF_THRESH)
@@ -554,6 +566,8 @@ def calib_roi(im,bbx,cls):
     txt, prob = clstm_ocr_parallel(im[bbx[1]:bbx[3], bbx[0]:bbx[2]], cls)
     print "clstm_ocr_paralle finished"
     cv2.setNumThreads(0)
+    
+
     if(prob<0.95):
         for i in range(0,2):
             for j in range(0,2):
@@ -562,6 +576,19 @@ def calib_roi(im,bbx,cls):
                     if(prob<prob_temp):
                         txt=txt_temp
                         prob=prob_temp
+    #TODO: Process image 
+    if (im.shape >= 3):
+        img1=cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
+        ret, imgBinary = cv2.threshold(img1,0,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)
+        print imgBinary.shape
+        if(prob<0.95):
+            for i in range(0,2):
+                for j in range(0,2):
+                    if (bbx[1]>15) and ( bbx[3] >15) and (bbx[2]>9) and (bbx[0]>9):
+                        txt_temp,prob_temp=clstm_ocr_calib(imgBinary[bbx[1]-5*i*math.pow( -1, j):bbx[3]-5*i*math.pow( -1, j), bbx[0]-3*i*math.pow( -1, j):bbx[2]-3*i*math.pow( -1, j)], cls)
+                        if(prob<prob_temp):
+                            txt=txt_temp
+                            prob=prob_temp
 
     print "clstm_ocr_calib finished"
     return txt, prob
